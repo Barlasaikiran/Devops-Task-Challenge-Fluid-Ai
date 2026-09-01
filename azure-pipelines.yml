@@ -7,7 +7,7 @@ pool:
 stages:
   - stage: Build
     jobs:
-      - job: Build job
+      - job: BuildJob
         displayName: Build Job
         steps:
           - checkout: self
