@@ -1,0 +1,21 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Build
+    jobs:
+      - job: Build job
+        displayName: Build Job
+        steps:
+          - checkout: self
+          - task: JavaToolInstaller@1
+            inputs:
+              versionSpec: '17'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+          
+
+            
