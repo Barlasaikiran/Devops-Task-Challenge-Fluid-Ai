@@ -15,21 +15,20 @@ stages:
     displayName: Build and Push Docker Image
 
     jobs:
-      - job: DockerBuildPush
-        displayName: Build and Push
+      - job: DockerBuildandPush
+        displayName: Build and Push Docker Image
 
         steps:
           - checkout: self
 
           - task: Docker@2
-            displayName: Build and Push image to ACR
+            displayName: Build and Push Docker Image 
             inputs:
               containerRegistry: $(acr-server-connection)
               repository: '$(imageRepository)'
-              command: 'buildAndPush'
+              command: 'build'
               Dockerfile: $(dockerfilePath)
               tags: |
                 latest
                 $(imageTag)
-
-            
+ 
