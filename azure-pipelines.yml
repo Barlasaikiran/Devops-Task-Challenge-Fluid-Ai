@@ -4,18 +4,31 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
+variables:
+  imageRepository: 'javapp'
+  dockerfilePath: 'app/Dockerfile'
+  imageTag: $(Build.BuildId)
+  acr-server-connection: 'acr-devops-challenge'
+
 stages:
-  - stage: Build
+  - stage: BuildAndPush
+    displayName: Build and Push Docker Image
+
     jobs:
-      - job: BuildJob
-        displayName: Build Job
+      - job: DockerBuildPush
+        displayName: Build and Push
+
         steps:
           - checkout: self
-          - task: JavaToolInstaller@1
+
+          - task: Docker@2
+            displayName: Build and Push image to ACR
             inputs:
-              versionSpec: '17'
-              jdkArchitectureOption: 'x64'
-              jdkSourceOption: 'PreInstalled'
-          
+              containerRegistry: $(acr-server-connection)
+              repository: '$(imageRepository)'
+              command: 'buildAndPush'
+              Dockerfile: $(dockerfilePath)
+              tags: |
+                $(imageTag)
 
             
