@@ -5,7 +5,7 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  imageRepository: 'javapp'
+  imageRepo: 'javapp'
   dockerfilePath: 'app/Dockerfile'
   imageTag: $(Build.BuildId)
   acr-server-connection: 'acr-devops-challenge'
@@ -20,15 +20,13 @@ stages:
 
         steps:
           - checkout: self
-
           - task: Docker@2
-            displayName: Build and Push Docker Image 
+            displayName: Docker Build and Push
             inputs:
-              containerRegistry: $(acr-server-connection)
-              repository: '$(imageRepository)'
-              command: 'build'
-              Dockerfile: $(dockerfilePath)
-              tags: |
-                latest
-                $(imageTag)
- 
+             containerRegistry: 'acr-devops-connection'
+             repository: '$(imageRepo)'
+             command: 'buildAndPush'
+             Dockerfile: '$(dockerfilePath)'
+             tags: |
+              latest
+               $(imageTag)
