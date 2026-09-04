@@ -8,7 +8,7 @@ variables:
   imageRepo: 'javapp'
   dockerfilePath: 'app/Dockerfile'
   imageTag: $(Build.BuildId)
-  acr-server-connection: 'acr-devops-challenge'
+  acr-service-connection: 'acr-devops-connection'
 
 stages:
   - stage: BuildAndPush
@@ -23,10 +23,10 @@ stages:
           - task: Docker@2
             displayName: Docker Build and Push
             inputs:
-             containerRegistry: 'acr-devops-connection'
+             containerRegistry: $(acr-service-connection)
              repository: '$(imageRepo)'
              command: 'buildAndPush'
              Dockerfile: '$(dockerfilePath)'
              tags: |
-              latest
+               latest
                $(imageTag)
