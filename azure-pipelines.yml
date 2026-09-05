@@ -96,22 +96,6 @@ stages:
           kubectl apply -f k8s/deployment.yaml
 
 
-    # Update Backend Image
-
-    - task: AzureCLI@2
-      displayName: Update Backend Image
-      inputs:
-        azureSubscription: $(aks-service-connection)
-        scriptType: bash
-        scriptLocation: inlineScript
-
-        inlineScript: |
-
-          kubectl set image deployment/backend \
-            backend=acrregistery.azurecr.io/$(imageRepo):$(imageTag) \
-            --namespace $(aks-namespace)
-
-
     # Verify Deployment
 
     - task: AzureCLI@2
