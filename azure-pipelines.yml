@@ -9,6 +9,7 @@ variables:
   dockerfilePath: 'app/Dockerfile'
   imageTag: $(Build.BuildId)
   acr-service-connection: 'acr-devops-connection'
+  aks-service-connection: 'HDFC-Manual'
 
 stages:
   - stage: BuildAndPush
@@ -30,3 +31,35 @@ stages:
              tags: |
                latest
                $(imageTag)
+
+  - stage: DeployToAKS
+    displayName: Deploy to AKS
+
+    dependsOn: BuildAndPush
+
+    jobs:
+      - job: Deploy
+        displayName: Deploy Backend to AKS
+
+        steps:
+
+          - task: AzureCLI@2
+            displayName: Deploy to AKS
+            inputs:
+              azureSubscription: $(aks-service-connection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+
+                az aks get-credentials \
+                  --resource-group Devops-Aks \
+                  --name devops-aks \
+                  --overwrite-existing
+
+                kubectl set image deployment/backend \
+                  backend=acrregistery.azurecr.io/javapp:$(Build.BuildId) \
+                  -n devops-task
+
+                kubectl rollout status deployment/backend \
+                  -n devops-task \
+                  --timeout=180s
