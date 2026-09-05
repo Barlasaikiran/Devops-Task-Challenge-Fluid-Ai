@@ -18,7 +18,7 @@ variables:
 
 stages:
 
-# STAGE  — BUILD AND PUSH
+# Build and push the Docker image
 
 - stage: BuildAndPush
   displayName: Build and Push Docker Image
@@ -43,7 +43,7 @@ stages:
           $(imageTag)
 
 
-# STAGE 2 — DEPLOY TO AKS
+# Deploy the application to AKS
 
 - stage: DeployToAKS
   displayName: Deploy to AKS
@@ -74,7 +74,7 @@ stages:
             --overwrite-existing
 
 
-    # Deploy Kubernetes manifests
+    # Apply Kubernetes manifests
 
     - task: AzureCLI@2
       displayName: Apply Kubernetes Manifests
@@ -96,7 +96,49 @@ stages:
           kubectl apply -f k8s/deployment.yaml
 
 
-    # Verify Deployment
+    # Update the backend image
+
+    - task: AzureCLI@2
+      displayName: Update Backend Image
+      inputs:
+        azureSubscription: $(aks-service-connection)
+        scriptType: bash
+        scriptLocation: inlineScript
+
+        inlineScript: |
+
+          kubectl set image deployment/backend \
+            backend=acrregistery.azurecr.io/$(imageRepo):$(imageTag) \
+            --namespace $(aks-namespace)
+
+
+    # Check the backend pod status
+
+    - task: AzureCLI@2
+      displayName: Check Backend Pod Status
+      condition: always()
+      inputs:
+        azureSubscription: $(aks-service-connection)
+        scriptType: bash
+        scriptLocation: inlineScript
+
+        inlineScript: |
+
+          echo "Backend pods"
+
+          kubectl get pods \
+            --namespace $(aks-namespace) \
+            -l app=backend \
+            -o wide
+
+          echo "Backend pod details"
+
+          kubectl describe pods \
+            --namespace $(aks-namespace) \
+            -l app=backend
+
+
+    # Verify the backend rollout
 
     - task: AzureCLI@2
       displayName: Verify Backend Deployment
@@ -114,10 +156,10 @@ stages:
             --timeout=180s
 
 
-    # Show Pods
+    # Show the final Kubernetes status
 
     - task: AzureCLI@2
-      displayName: Show Kubernetes Pods
+      displayName: Show Kubernetes Status
       condition: always()
       inputs:
         azureSubscription: $(aks-service-connection)
@@ -126,24 +168,18 @@ stages:
 
         inlineScript: |
 
-          echo "=============================="
-          echo "Kubernetes Pods"
-          echo "=============================="
+          echo "Kubernetes pods"
 
           kubectl get pods \
             --namespace $(aks-namespace) \
             -o wide
 
-          echo "=============================="
-          echo "Backend Deployment"
-          echo "=============================="
+          echo "Backend deployment"
 
           kubectl get deployment backend \
             --namespace $(aks-namespace)
 
-          echo "=============================="
-          echo "Backend ReplicaSet"
-          echo "=============================="
+          echo "Backend ReplicaSets"
 
           kubectl get rs \
             --namespace $(aks-namespace)
