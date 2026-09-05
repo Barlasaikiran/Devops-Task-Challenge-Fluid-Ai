@@ -8,58 +8,158 @@ variables:
   imageRepo: 'javapp'
   dockerfilePath: 'app/Dockerfile'
   imageTag: $(Build.BuildId)
+
   acr-service-connection: 'acr-devops-connection'
   aks-service-connection: 'HDFC-Manual'
 
+  aks-resource-group: 'Devops-Aks'
+  aks-cluster-name: 'devops-aks'
+  aks-namespace: 'devops-task'
+
 stages:
-  - stage: BuildAndPush
+
+# STAGE  — BUILD AND PUSH
+
+- stage: BuildAndPush
+  displayName: Build and Push Docker Image
+
+  jobs:
+  - job: DockerBuildAndPush
     displayName: Build and Push Docker Image
 
-    jobs:
-      - job: DockerBuildandPush
-        displayName: Build and Push Docker Image
+    steps:
 
-        steps:
-          - checkout: self
-          - task: Docker@2
-            displayName: Docker Build and Push
-            inputs:
-             containerRegistry: $(acr-service-connection)
-             repository: '$(imageRepo)'
-             command: 'buildAndPush'
-             Dockerfile: '$(dockerfilePath)'
-             tags: |
-               latest
-               $(imageTag)
+    - checkout: self
 
-  - stage: DeployToAKS
-    displayName: Deploy to AKS
+    - task: Docker@2
+      displayName: Build and Push Docker Image
+      inputs:
+        containerRegistry: $(acr-service-connection)
+        repository: $(imageRepo)
+        command: buildAndPush
+        Dockerfile: $(dockerfilePath)
+        tags: |
+          latest
+          $(imageTag)
 
-    dependsOn: BuildAndPush
 
-    jobs:
-      - job: Deploy
-        displayName: Deploy Backend to AKS
+# STAGE 2 — DEPLOY TO AKS
 
-        steps:
+- stage: DeployToAKS
+  displayName: Deploy to AKS
 
-          - task: AzureCLI@2
-            displayName: Deploy to AKS
-            inputs:
-              azureSubscription: $(aks-service-connection)
-              scriptType: bash
-              scriptLocation: inlineScript
-              inlineScript: |
+  dependsOn: BuildAndPush
+  condition: succeeded()
 
-                az aks get-credentials \
-                  --resource-group Devops-Aks \
-                  --name devops-aks \
-                  --overwrite-existing
+  jobs:
+  - job: Deploy
+    displayName: Deploy Backend to AKS
 
-                kubectl set image deployment/backend \
-                  backend=acrregistery.azurecr.io/javapp:$(Build.BuildId) \
-                  -n devops-task
+    steps:
 
-                kubectl rollout status deployment/backend \
-                  -n devops-task \
-                  --timeout=180s
+    # Get AKS credentials
+
+    - task: AzureCLI@2
+      displayName: Get AKS Credentials
+      inputs:
+        azureSubscription: $(aks-service-connection)
+        scriptType: bash
+        scriptLocation: inlineScript
+
+        inlineScript: |
+
+          az aks get-credentials \
+            --resource-group $(aks-resource-group) \
+            --name $(aks-cluster-name) \
+            --overwrite-existing
+
+
+    # Deploy Kubernetes manifests
+
+    - task: AzureCLI@2
+      displayName: Apply Kubernetes Manifests
+      inputs:
+        azureSubscription: $(aks-service-connection)
+        scriptType: bash
+        scriptLocation: inlineScript
+
+        inlineScript: |
+
+          kubectl apply -f k8s/namespace.yaml
+
+          kubectl apply -f k8s/postgress.yaml
+
+          kubectl apply -f k8s/service-account.yaml
+
+          kubectl apply -f k8s/secret-provider-class.yaml
+
+          kubectl apply -f k8s/deployment.yaml
+
+
+    # Update Backend Image
+
+    - task: AzureCLI@2
+      displayName: Update Backend Image
+      inputs:
+        azureSubscription: $(aks-service-connection)
+        scriptType: bash
+        scriptLocation: inlineScript
+
+        inlineScript: |
+
+          kubectl set image deployment/backend \
+            backend=acrregistery.azurecr.io/$(imageRepo):$(imageTag) \
+            --namespace $(aks-namespace)
+
+
+    # Verify Deployment
+
+    - task: AzureCLI@2
+      displayName: Verify Backend Deployment
+      inputs:
+        azureSubscription: $(aks-service-connection)
+        scriptType: bash
+        scriptLocation: inlineScript
+
+        inlineScript: |
+
+          echo "Waiting for backend rollout..."
+
+          kubectl rollout status deployment/backend \
+            --namespace $(aks-namespace) \
+            --timeout=180s
+
+
+    # Show Pods
+
+    - task: AzureCLI@2
+      displayName: Show Kubernetes Pods
+      condition: always()
+      inputs:
+        azureSubscription: $(aks-service-connection)
+        scriptType: bash
+        scriptLocation: inlineScript
+
+        inlineScript: |
+
+          echo "=============================="
+          echo "Kubernetes Pods"
+          echo "=============================="
+
+          kubectl get pods \
+            --namespace $(aks-namespace) \
+            -o wide
+
+          echo "=============================="
+          echo "Backend Deployment"
+          echo "=============================="
+
+          kubectl get deployment backend \
+            --namespace $(aks-namespace)
+
+          echo "=============================="
+          echo "Backend ReplicaSet"
+          echo "=============================="
+
+          kubectl get rs \
+            --namespace $(aks-namespace)
