@@ -96,49 +96,7 @@ stages:
           kubectl apply -f k8s/deployment.yaml
 
 
-    # Update the backend image
-
-    - task: AzureCLI@2
-      displayName: Update Backend Image
-      inputs:
-        azureSubscription: $(aks-service-connection)
-        scriptType: bash
-        scriptLocation: inlineScript
-
-        inlineScript: |
-
-          kubectl set image deployment/backend \
-            backend=acrregistery.azurecr.io/$(imageRepo):$(imageTag) \
-            --namespace $(aks-namespace)
-
-
-    # Check the backend pod status
-
-    - task: AzureCLI@2
-      displayName: Check Backend Pod Status
-      condition: always()
-      inputs:
-        azureSubscription: $(aks-service-connection)
-        scriptType: bash
-        scriptLocation: inlineScript
-
-        inlineScript: |
-
-          echo "Backend pods"
-
-          kubectl get pods \
-            --namespace $(aks-namespace) \
-            -l app=backend \
-            -o wide
-
-          echo "Backend pod details"
-
-          kubectl describe pods \
-            --namespace $(aks-namespace) \
-            -l app=backend
-
-
-    # Verify the backend rollout
+    # Verify the backend deployment
 
     - task: AzureCLI@2
       displayName: Verify Backend Deployment
@@ -156,7 +114,7 @@ stages:
             --timeout=180s
 
 
-    # Show the final Kubernetes status
+    # Show Kubernetes status
 
     - task: AzureCLI@2
       displayName: Show Kubernetes Status
