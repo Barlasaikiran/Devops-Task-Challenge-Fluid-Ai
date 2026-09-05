@@ -25,7 +25,7 @@ spec:
       containers:
         - name: backend
 
-          image: acrregistery.azurecr.io/javapp:latest1
+          image: acrregistery.azurecr.io/javapp:wrongtag
 
           ports:
             - containerPort: 8080
